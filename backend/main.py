@@ -1,4 +1,3 @@
-import os
 from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, HTTPException
 from pydantic import BaseModel, Field
