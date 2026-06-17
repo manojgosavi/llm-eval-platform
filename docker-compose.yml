@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: eval_platform_db
+    environment:
+      POSTGRES_USER: evaluser
+      POSTGRES_PASSWORD: evalpass
+      POSTGRES_DB: eval_platform
+    ports:
+      - "5433:5432"
+    volumes: 
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

@@ -2,9 +2,13 @@ import os
 from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, HTTPException
 from pydantic import BaseModel, Field
+from datetime import datetime
+from sqlalchemy import select
+from .adapters.base import BaseLLMAdapter, CompletionResult
+from .adapters.claude import ClaudeAdapter
 
-from adapters.base import BaseLLMAdapter, CompletionResult
-from adapters.claude import ClaudeAdapter
+from .db import get_db, AsyncSession
+from .models import EvalRun
 
 load_dotenv()
 
@@ -31,6 +35,24 @@ class RunResponse(BaseModel):
     max_tokens_requested: int
     context_used_pct: float
     was_truncated: bool
+    created_at: datetime
+
+
+class Config:
+    from_attributes = True
+
+
+class RunSummary(BaseModel):
+    id: int
+    prompt: str
+    model: str
+    latency_ms: float
+    cost_usd: float
+    was_truncated: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 def get_adapter() -> BaseLLMAdapter:
@@ -54,6 +76,7 @@ async def health():
 async def run(
     request: RunRequest,
     adapter: BaseLLMAdapter = Depends(get_adapter),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Run a single prompt against a model and return
@@ -71,6 +94,25 @@ async def run(
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
 
+    # persist the run
+    db_run = EvalRun(
+        prompt=request.prompt,
+        system_prompt=request.system_prompt,
+        model=result.model,
+        max_tokens_requested=result.max_tokens_requested,
+        temperature=request.temperature,
+        response_text=result.text,
+        latency_ms=result.latency_ms,
+        input_tokens=result.input_tokens,
+        output_tokens=result.output_tokens,
+        cost_usd=result.cost_usd,
+        context_used_pct=result.context_used_pct,
+        was_truncated=result.was_truncated,
+    )
+    db.add(db_run)
+    await db.commit()
+    await db.refresh(db_run)
+
     return RunResponse(
         text=result.text,
         model=result.model,
@@ -81,4 +123,46 @@ async def run(
         max_tokens_requested=request.max_tokens,
         context_used_pct=result.context_used_pct,
         was_truncated=result.was_truncated,
+        created_at=db_run.created_at,
+    )
+
+
+@app.get("/runs", response_model=list[RunSummary])
+async def list_runs(
+    limit: int = 20,
+    model: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    List recent runs, optionally filtered by model.
+    """
+    query = select(EvalRun).order_by(EvalRun.created_at.desc()).limit(limit)
+    if model:
+        query = query.where(EvalRun.model == model)
+    results = await db.execute(query)
+    runs = results.scalars().all()
+    return runs
+
+
+@app.get("/runs/{run_id}", response_model=RunResponse)
+async def get_run(run_id: int, db: AsyncSession = Depends(get_db)):
+    """Fetch a single run by id."""
+    result = await db.execute(select(EvalRun).where(EvalRun.id == run_id))
+    run = result.scalar_one_or_none()
+
+    if run is None:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+    return RunResponse(
+        id=run.id,
+        text=run.response_text,
+        model=run.model,
+        latency_ms=run.latency_ms,
+        input_tokens=run.input_tokens,
+        output_tokens=run.output_tokens,
+        cost_usd=run.cost_usd,
+        max_tokens_requested=run.max_tokens_requested,
+        context_used_pct=run.context_used_pct,
+        was_truncated=run.was_truncated,
+        created_at=run.created_at,
     )
