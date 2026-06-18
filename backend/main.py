@@ -5,9 +5,16 @@ from datetime import datetime
 from sqlalchemy import select
 from .adapters.base import BaseLLMAdapter, CompletionResult
 from .adapters.claude import ClaudeAdapter
+from .adapters.openai import OpenAIAdapter
+from .adapters.gemini import GeminiAdapter
 
 from .db import get_db, AsyncSession
 from .models import EvalRun
+
+from .evaluators.semantic import score_semantic_similarity
+from .evaluators.llm_judge import score_llm_judge
+from .models import EvalScore
+
 
 load_dotenv()
 
@@ -54,8 +61,18 @@ class RunSummary(BaseModel):
         from_attributes = True
 
 
-def get_adapter() -> BaseLLMAdapter:
-    return ClaudeAdapter()
+def get_adapter_for_model(model: str) -> BaseLLMAdapter:
+    if model.startswith("anthropic/"):
+        return ClaudeAdapter()
+    elif model.startswith("openai/"):
+        return OpenAIAdapter()
+    elif model.startswith("gemini/"):
+        return GeminiAdapter()
+    else:
+        raise ValueError(
+            f"No adapter found for model '{model}'. "
+            f"Expected prefix: anthropic/, openai/, or gemini/"
+        )
 
 
 app = FastAPI(
@@ -74,13 +91,16 @@ async def health():
 @app.post("/run", response_model=RunResponse)
 async def run(
     request: RunRequest,
-    adapter: BaseLLMAdapter = Depends(get_adapter),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Run a single prompt against a model and return
     completion + latency + cost + context metrics.
     """
+    try:
+        adapter = get_adapter_for_model(request.model)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     try:
         result: CompletionResult = await adapter.complete(
             prompt=request.prompt,
@@ -165,3 +185,79 @@ async def get_run(run_id: int, db: AsyncSession = Depends(get_db)):
         was_truncated=run.was_truncated,
         created_at=run.created_at,
     )
+
+
+class ScoreResult(BaseModel):
+    scorer_type: str
+    score: float
+    reasoning: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class ScoreRequest(BaseModel):
+    expected_output: str | None = Field(
+        default=None, description="Required for semantic similarity scoring"
+    )
+    run_semantic: bool = Field(default=True)
+    run_judge: bool = Field(default=True)
+
+    class Config:
+        from_attributes = True
+
+
+@app.post("/runs/{run_id}/score", response_model=list[ScoreResult])
+async def score_run(
+    run_id: int,
+    request: ScoreRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    # 1. fetch the run — fail fast if it doesn't exist
+    result = await db.execute(select(EvalRun).where(EvalRun.id == run_id))
+    run = result.scalar_one_or_none()
+    if run is None:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+    new_scores = []
+
+    # 2. semantic similarity — only if expected_output was provided
+    if request.run_semantic and request.expected_output:
+        similarity = score_semantic_similarity(
+            actual_output=run.response_text,
+            expected_output=request.expected_output,
+        )
+        db_score = EvalScore(
+            run_id=run.id,
+            scorer_type="semantic_similarity",
+            score=similarity,
+            expected_output=request.expected_output,
+        )
+        db.add(db_score)
+        new_scores.append(db_score)
+
+    # 3. LLM-as-judge — independent of expected_output
+    if request.run_judge:
+        try:
+            judge_result = await score_llm_judge(
+                prompt=run.prompt,
+                response_text=run.response_text,
+            )
+            db_score = EvalScore(
+                run_id=run.id,
+                scorer_type="llm_judge",
+                score=judge_result["score"],
+                reasoning=judge_result["reasoning"],
+            )
+            db.add(db_score)
+            new_scores.append(db_score)
+        except RuntimeError as e:
+            # judge failed to return parseable output — don't crash the whole
+            # request if semantic scoring already succeeded above
+            raise HTTPException(status_code=502, detail=str(e))
+
+    await db.commit()
+    for s in new_scores:
+        await db.refresh(s)
+
+    return new_scores

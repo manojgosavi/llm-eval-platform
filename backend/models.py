@@ -1,5 +1,7 @@
 from sqlalchemy import Column, Integer, String, Text, Float, Boolean, DateTime, func
 from .db import Base
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import relationship
 
 
 class EvalRun(Base):
@@ -27,3 +29,23 @@ class EvalRun(Base):
 
     # metadata
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    scores = relationship(
+        "EvalScore", back_populates="run", cascade="all, delete-orphan"
+    )
+
+
+class EvalScore(Base):
+    __tablename__ = "eval_scores"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    run_id = Column(Integer, ForeignKey("eval_runs.id"), nullable=False, index=True)
+    scorer_type = Column(String, nullable=False)  # "semantic_similarity" | "llm_judge"
+    score = Column(Float, nullable=False)  # normalized 0.0-1.0
+    reasoning = Column(Text, nullable=True)  # judge's explanation, null for semantic
+    expected_output = Column(
+        Text, nullable=True
+    )  # what we compared against, for semantic
+
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    run = relationship("EvalRun", back_populates="scores")

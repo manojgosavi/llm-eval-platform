@@ -21,7 +21,7 @@ class BaseLLMAdapter(ABC):
         "anthropic/claude-sonnet-4-6": 200000,
         "openai/gpt-4o": 128000,
         "openai/gpt-4o-mini": 128000,
-        "gemini/gemini-pro": 1000000,
+        "gemini/gemini-3.5-flash": 1000000,
     }
 
     async def complete(

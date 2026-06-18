@@ -5,8 +5,8 @@ from litellm import AuthenticationError, RateLimitError, APIError
 from .base import BaseLLMAdapter, CompletionResult
 
 
-class ClaudeAdapter(BaseLLMAdapter):
-    DEFAULT_MODEL = "anthropic/claude-sonnet-4-6"
+class GeminiAdapter(BaseLLMAdapter):
+    DEFAULT_MODEL = "gemini/gemini-3.5-flash"
 
     async def complete(
         self,
@@ -16,10 +16,11 @@ class ClaudeAdapter(BaseLLMAdapter):
         temperature: float = 0.7,
     ) -> CompletionResult:
 
-        context_window = self.CONTEXT_WINDOWS.get(model, 100000)
+        context_window = self.CONTEXT_WINDOWS.get(model, 1000000)
 
         try:
             start = time.perf_counter()
+
             response = await litellm.acompletion(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
@@ -30,21 +31,17 @@ class ClaudeAdapter(BaseLLMAdapter):
             latency_ms = (time.perf_counter() - start) * 1000
 
         except AuthenticationError:
-            raise ValueError("Invalid Antropic API key. Check your .env file.")
+            raise ValueError("Invalid Gemini API key. Check your .env file.")
         except RateLimitError:
-            raise RuntimeError(
-                f"Rate limit exceeded for model {model}. Back off and retry."
-            )
+            raise RuntimeError(f"Rate limit hit for model {model}. Back off and retry.")
         except APIError as e:
-            raise RuntimeError(f"Anthropic API error for model {model}: str{e}")
+            raise RuntimeError(f"Gemini API error: {str(e)}")
 
-        # extract from litellm response
         text = response.choices[0].message.content
         input_tokens = response.usage.prompt_tokens
         output_tokens = response.usage.completion_tokens
-        cost_usd = litellm.completion_cost(completion_response=response)
+        cost_usd = litellm.completion_cost(completion_response=response) or 0.0
 
-        # derive our computed fields
         was_truncated = output_tokens >= max_tokens
         context_used_pct = round(
             (input_tokens + output_tokens) / context_window * 100, 2
@@ -53,7 +50,7 @@ class ClaudeAdapter(BaseLLMAdapter):
         return CompletionResult(
             text=text,
             model=model,
-            latency_ms=latency_ms,
+            latency_ms=round(latency_ms, 2),
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             cost_usd=round(cost_usd, 6),
