@@ -102,7 +102,7 @@ async def run(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     try:
-        result: CompletionResult = await adapter.complete(
+        result: CompletionResult = await adapter.complete_with_retry(
             prompt=request.prompt,
             model=request.model,
             max_tokens=request.max_tokens,
