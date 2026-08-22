@@ -42,6 +42,7 @@ class BaseLLMAdapter(ABC):
         model: str,
         max_tokens: int = 1024,
         temperature: float = 0.7,
+        api_key: str | None = None,
     ) -> CompletionResult:
         """
         Send a prompt to the LLM and return the structured result
@@ -56,6 +57,7 @@ class BaseLLMAdapter(ABC):
                     model=model,
                     max_tokens=max_tokens,
                     temperature=temperature,
+                    api_key=api_key,
                 )
             except self.RETRYABLE_EXCEPTIONS as e:
                 last_exception = e
@@ -73,7 +75,7 @@ class BaseLLMAdapter(ABC):
             except RuntimeError:
                 raise RuntimeError(
                     f"Request failed after {self.MAX_RETRIES} attempts. "
-                    f"Last error: {str(last_exception)}"
+                    f"Last error: {last_exception!s}"
                 )
 
     async def complete(
@@ -82,6 +84,7 @@ class BaseLLMAdapter(ABC):
         model: str,
         max_tokens: int = 1024,
         temperature: float = 0.7,
+        api_key: str | None = None,
     ) -> CompletionResult:
         """
         Send a prompt to the LLM and return the structured result

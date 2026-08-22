@@ -7,6 +7,7 @@ import NavBar from './components/NavBar'
 import Dashboard from './pages/Dashboard'
 import RunHistroy from './pages/RunHistory'
 import RunDetail from './pages/RunDetail'
+import Settings from './pages/Settings'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -18,6 +19,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/" element={<Dashboard />} />
             <Route path="/runs" element={<RunHistroy />} />
             <Route path="/runs/:id" element={<RunDetail />} />
+            <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>
       </div>

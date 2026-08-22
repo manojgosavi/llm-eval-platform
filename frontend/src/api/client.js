@@ -1,4 +1,6 @@
 import axios from "axios";
+import { getApiKeys } from '../hooks/useApiKeys'
+
 
 const api = axios.create({
     baseURL: '/api',
@@ -7,6 +9,19 @@ const api = axios.create({
     },
 })
 
+// attach user API keys to every POST request body
+api.interceptors.request.use((config) => {
+    if (config.method === 'post') {
+        const keys = getApiKeys()
+        config.data = {
+            ...config.data,
+            ...(keys.anthropic && { anthropic_api_key: keys.anthropic }),
+            ...(keys.gemini && { gemini_api_key: keys.gemini }),
+            ...(keys.openai && { openai_api_key: keys.openai }),
+        }
+    }
+    return config
+})
 
 // intercept errors globally — extract FastAPI's {"detail": "..."} message
 api.interceptors.request.use(

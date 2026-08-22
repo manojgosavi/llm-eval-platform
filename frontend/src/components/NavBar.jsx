@@ -5,6 +5,7 @@ import { Link, useLocation } from 'react-router-dom'
 const links = [
   { to: '/',     label: 'Dashboard' },
   { to: '/runs', label: 'Run History' },
+  { to: '/settings', label: 'Settings' },
 ]
 
 export default function NavBar() {

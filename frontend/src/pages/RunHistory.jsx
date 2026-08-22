@@ -23,8 +23,7 @@ export default function RunHistory() {
     setError(null)
     getRuns({ model: model || undefined, limit: 50 })
       .then((data) => {
-        console.log('API response:', data)
-        setRuns(data)
+        setRuns(Array.isArray(data) ? data : [])
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
