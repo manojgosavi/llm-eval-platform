@@ -1,4 +1,5 @@
 from datetime import datetime
+import os
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException
@@ -13,6 +14,7 @@ from .db import AsyncSession, get_db
 from .evaluators.llm_judge import score_llm_judge
 from .evaluators.semantic import score_semantic_similarity
 from .models import EvalRun, EvalScore
+from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
@@ -93,6 +95,19 @@ app = FastAPI(
 async def health():
     """Quick Liveness check - useful for Docker and CLI"""
     return {"status": "ok"}
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",  # local dev
+        "https://*.vercel.app",  # Vercel preview deploys
+        os.getenv("FRONTEND_URL", ""),  # production Vercel URL
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.post("/run", response_model=RunResponse)
