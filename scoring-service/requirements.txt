@@ -3,5 +3,5 @@ uvicorn==0.30.6
 sentence-transformers==3.0.1
 litellm==1.97.0
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.3.1+cpu
+torch==2.13.0+cpu
 python-dotenv==1.0.1
