@@ -1,20 +1,28 @@
 import os
 import httpx
 
-SCORING_SERVICE_URL = os.getenv("SCORING_SERVICE_URL", "http://localhost:9000")
+_model = None
 
 
-async def score_semantic_similarity(
-    actual_output: str,
-    expected_output: str,
-) -> float:
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(
-            f"{SCORING_SERVICE_URL}/score/semantic",
-            json={
-                "actual_output": actual_output,
-                "expected_output": expected_output,
-            },
-        )
-        response.raise_for_status()
-        return response.json()["score"]
+def _get_model():
+    global _model
+    if _model is None:
+        _model = SentenceTransformer("all-MiniLM-L6-v2")
+    return _model
+
+
+def score_semantic_similarity(actual_output: str, expected_output: str) -> float:
+    """
+    Score the semantic similarity of the output to the expected output.
+    Returns a float between 0.0 and 1.0, where 1.0 means identical meaning.
+    """
+    model = _get_model()
+    embeddings = model.encode([actual_output, expected_output])
+    similarity = util.cos_sim(embeddings[0], embeddings[1])
+
+    # cos_sim returns a tensor; extract the scalar float
+    score = similarity.item()
+
+    # clamp to 0-1 — in rare edge cases (very short/empty strings)
+    # cosine similarity can dip slightly negative
+    return max(0.0, min(1.0, score))
