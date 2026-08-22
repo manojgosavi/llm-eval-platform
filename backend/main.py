@@ -1,20 +1,18 @@
-from dotenv import load_dotenv
-from fastapi import FastAPI, Depends, HTTPException
-from pydantic import BaseModel, Field
 from datetime import datetime
+
+from dotenv import load_dotenv
+from fastapi import Depends, FastAPI, HTTPException
+from pydantic import BaseModel, Field
 from sqlalchemy import select
+
 from .adapters.base import BaseLLMAdapter, CompletionResult
 from .adapters.claude import ClaudeAdapter
-from .adapters.openai import OpenAIAdapter
 from .adapters.gemini import GeminiAdapter
-
-from .db import get_db, AsyncSession
-from .models import EvalRun
-
-from .evaluators.semantic import score_semantic_similarity
+from .adapters.openai import OpenAIAdapter
+from .db import AsyncSession, get_db
 from .evaluators.llm_judge import score_llm_judge
-from .models import EvalScore
-
+from .evaluators.semantic import score_semantic_similarity
+from .models import EvalRun, EvalScore
 
 load_dotenv()
 
@@ -32,8 +30,10 @@ class RunRequest(BaseModel):
 
 
 class RunResponse(BaseModel):
+    id: int
     text: str
     model: str
+    prompt: str
     latency_ms: float
     input_tokens: int
     output_tokens: int
@@ -75,6 +75,9 @@ def get_adapter_for_model(model: str) -> BaseLLMAdapter:
         )
 
 
+DB_DEPENDENCY = Depends(get_db)
+
+
 app = FastAPI(
     title="LLM Eval Platform",
     description="A/B test and score LLM outputs across providers",
@@ -91,7 +94,7 @@ async def health():
 @app.post("/run", response_model=RunResponse)
 async def run(
     request: RunRequest,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DB_DEPENDENCY,
 ):
     """
     Run a single prompt against a model and return
@@ -150,7 +153,7 @@ async def run(
 async def list_runs(
     limit: int = 20,
     model: str | None = None,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DB_DEPENDENCY,
 ):
     """
     List recent runs, optionally filtered by model.
@@ -164,7 +167,7 @@ async def list_runs(
 
 
 @app.get("/runs/{run_id}", response_model=RunResponse)
-async def get_run(run_id: int, db: AsyncSession = Depends(get_db)):
+async def get_run(run_id: int, db: AsyncSession = DB_DEPENDENCY):
     """Fetch a single run by id."""
     result = await db.execute(select(EvalRun).where(EvalRun.id == run_id))
     run = result.scalar_one_or_none()
@@ -176,6 +179,7 @@ async def get_run(run_id: int, db: AsyncSession = Depends(get_db)):
         id=run.id,
         text=run.response_text,
         model=run.model,
+        prompt=run.prompt,
         latency_ms=run.latency_ms,
         input_tokens=run.input_tokens,
         output_tokens=run.output_tokens,
@@ -211,7 +215,7 @@ class ScoreRequest(BaseModel):
 async def score_run(
     run_id: int,
     request: ScoreRequest,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DB_DEPENDENCY,
 ):
     # 1. fetch the run — fail fast if it doesn't exist
     result = await db.execute(select(EvalRun).where(EvalRun.id == run_id))
@@ -261,3 +265,26 @@ async def score_run(
         await db.refresh(s)
 
     return new_scores
+
+
+class ScoreResponse(BaseModel):
+    id: int
+    scorer_type: str
+    score: float
+    reasoning: str | None = None
+    expected_output: str | None = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+@app.get("/runs/{run_id}/scores", response_model=list[ScoreResponse])
+async def get_scores(run_id: int, db: AsyncSession = DB_DEPENDENCY):
+    """Fetch all scores for a given run."""
+    result = await db.execute(
+        select(EvalScore)
+        .where(EvalScore.run_id == run_id)
+        .order_by(EvalScore.created_at.desc())
+    )
+    return result.scalars().all()
