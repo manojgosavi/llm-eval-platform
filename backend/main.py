@@ -244,7 +244,7 @@ async def score_run(
 
     # 2. semantic similarity — only if expected_output was provided
     if request.run_semantic and request.expected_output:
-        similarity = score_semantic_similarity(
+        similarity = await score_semantic_similarity(
             actual_output=run.response_text,
             expected_output=request.expected_output,
         )
