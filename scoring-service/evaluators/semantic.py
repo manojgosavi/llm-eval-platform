@@ -1,5 +1,4 @@
-import os
-import httpx
+from sentence_transformers import SentenceTransformer, util
 
 _model = None
 
