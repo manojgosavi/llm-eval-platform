@@ -136,6 +136,8 @@ async def run(
     await db.refresh(db_run)
 
     return RunResponse(
+        id=db_run.id,
+        prompt=db_run.prompt,
         text=result.text,
         model=result.model,
         latency_ms=result.latency_ms,
