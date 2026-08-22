@@ -1,6 +1,13 @@
 from sentence_transformers import SentenceTransformer, util
 
-_model = SentenceTransformer("all-MiniLM-L6-v2")
+_model = None
+
+
+def _get_model():
+    global _model
+    if _model is None:
+        _model = SentenceTransformer("all-MiniLM-L6-v2")
+    return _model
 
 
 def score_semantic_similarity(actual_output: str, expected_output: str) -> float:
@@ -8,7 +15,8 @@ def score_semantic_similarity(actual_output: str, expected_output: str) -> float
     Score the semantic similarity of the output to the expected output.
     Returns a float between 0.0 and 1.0, where 1.0 means identical meaning.
     """
-    embeddings = _model.encode([actual_output, expected_output])
+    model = _get_model()
+    embeddings = model.encode([actual_output, expected_output])
     similarity = util.cos_sim(embeddings[0], embeddings[1])
 
     # cos_sim returns a tensor; extract the scalar float
