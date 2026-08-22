@@ -23,10 +23,13 @@ export const getRuns = (params = {}) =>
     api.get('/runs', { params }).then((r) => r.data)
 
 export const getRunById = (id) =>
-    api.get('/runs/{id}').then((r) => r.data)
+    api.get(`/runs/${id}`).then((r) => r.data)
 
 export const createRun = (payload) =>
-    api.post('/run', payload).then((r) => r.data)
+    api.post('/runs', payload).then((r) => r.data)
 
 export const scoreRun = (id, payload) =>
-    api.post('/runs/{$id}/score', payload).then((r) => r.data)
+    api.post(`/runs/${id}/score`, payload).then((r) => r.data)
+
+export const getScoresByRunId = (id) =>
+    api.get(`/runs/${id}/scores`).then((r) => r.data)
