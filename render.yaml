@@ -19,9 +19,9 @@ services:
   - type: web
     name: llm-eval-scoring-service
     runtime: python
-    buildCommand: pip install -r scoring-service/requirements.txt
-    startCommand: uvicorn scoring_service.main:app --host 0.0.0.0 --port $PORT
     rootDir: scoring-service
+    buildCommand: pip install -r scoring-service/requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: ANTHROPIC_API_KEY
         sync: false
