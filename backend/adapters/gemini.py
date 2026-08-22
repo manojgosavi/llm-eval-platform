@@ -14,6 +14,7 @@ class GeminiAdapter(BaseLLMAdapter):
         model: str = DEFAULT_MODEL,
         max_tokens: int = 1024,
         temperature: float = 0.7,
+        api_key: str | None = None,
     ) -> CompletionResult:
 
         context_window = self.CONTEXT_WINDOWS.get(model, 1000000)
@@ -26,6 +27,7 @@ class GeminiAdapter(BaseLLMAdapter):
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=max_tokens,
                 temperature=temperature,
+                api_key=api_key or None,
             )
 
             latency_ms = (time.perf_counter() - start) * 1000

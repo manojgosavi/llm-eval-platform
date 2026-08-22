@@ -27,6 +27,10 @@ class RunRequest(BaseModel):
     system_prompt: str | None = Field(
         default=None, description="Optional system prompt"
     )
+    # user-supplied keys — override server env vars if provided
+    anthropic_api_key: str | None = Field(default=None, exclude=True)
+    gemini_api_key: str | None = Field(default=None, exclude=True)
+    openai_api_key: str | None = Field(default=None, exclude=True)
 
 
 class RunResponse(BaseModel):
@@ -104,12 +108,23 @@ async def run(
         adapter = get_adapter_for_model(request.model)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    # pick the right user-supplied key based on model prefix
+    api_key = None
+    if request.model.startswith("anthropic/"):
+        api_key = request.anthropic_api_key
+    elif request.model.startswith("gemini/"):
+        api_key = request.gemini_api_key
+    elif request.model.startswith("openai/"):
+        api_key = request.openai_api_key
+
     try:
         result: CompletionResult = await adapter.complete_with_retry(
             prompt=request.prompt,
             model=request.model,
             max_tokens=request.max_tokens,
             temperature=request.temperature,
+            api_key=api_key,
         )
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))

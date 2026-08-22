@@ -10,6 +10,9 @@ DATABASE_URL = os.getenv(
     "postgresql+asyncpg://evaluser:evalpass@localhost:5433/eval_platform",
 )
 
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+
 engine = create_async_engine(DATABASE_URL, echo=False)
 
 AsyncSessionLocal = sessionmaker(
