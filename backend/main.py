@@ -93,14 +93,9 @@ DB_DEPENDENCY = Depends(get_db)
 
 @asynccontextmanager
 async def lifespan(app):
-    import asyncio
+    import subprocess
 
-    process = await asyncio.create_subprocess_exec("alembic", "upgrade", "head")
-    await process.wait()
-    if process.returncode != 0:
-        raise RuntimeError(
-            f"Alembic migration failed with exit code {process.returncode}"
-        )
+    subprocess.run(["alembic", "upgrade", "head"], check=True)
     yield
 
 
