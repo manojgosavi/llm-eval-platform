@@ -1,10 +1,8 @@
-import os
 from dotenv import load_dotenv
+from evaluators.llm_judge import score_llm_judge
+from evaluators.semantic import score_semantic_similarity
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-
-from evaluators.semantic import score_semantic_similarity
-from evaluators.llm_judge import score_llm_judge
 
 load_dotenv()
 
@@ -43,7 +41,7 @@ async def semantic(request: SemanticRequest):
             expected_output=request.expected_output,
         )
         return ScoreResult(score=score)
-    except Exception as e:
+    except ValueError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 

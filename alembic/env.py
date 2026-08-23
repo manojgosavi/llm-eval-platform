@@ -1,17 +1,14 @@
-from logging.config import fileConfig
-
-from sqlalchemy import pool
-
-from alembic import context
-
-
-from backend.db import Base
-
 import asyncio
-from sqlalchemy.ext.asyncio import async_engine_from_config
 import os
 import sys
+from logging.config import fileConfig
+
 from dotenv import load_dotenv
+from sqlalchemy import pool
+from sqlalchemy.ext.asyncio import async_engine_from_config
+
+from alembic import context
+from backend.db import Base
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 

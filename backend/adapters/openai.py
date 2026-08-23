@@ -1,6 +1,7 @@
 import time
+
 import litellm
-from litellm import AuthenticationError, RateLimitError, APIError
+from litellm import APIError, AuthenticationError, RateLimitError
 
 from .base import BaseLLMAdapter, CompletionResult
 
@@ -37,7 +38,7 @@ class OpenAIAdapter(BaseLLMAdapter):
         except RateLimitError:
             raise RuntimeError(f"Rate limit hit for model {model}. Back off and retry.")
         except APIError as e:
-            raise RuntimeError(f"OpenAI API error: {str(e)}")
+            raise RuntimeError(f"OpenAI API error: {e!s}")
 
         text = response.choices[0].message.content
         input_tokens = response.usage.prompt_tokens

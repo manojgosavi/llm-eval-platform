@@ -1,6 +1,7 @@
 import time
+
 import litellm
-from litellm import AuthenticationError, RateLimitError, APIError
+from litellm import APIError, AuthenticationError, RateLimitError
 
 from .base import BaseLLMAdapter, CompletionResult
 

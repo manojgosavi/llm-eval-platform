@@ -1,8 +1,10 @@
-from abc import ABC
-from dataclasses import dataclass
-import litellm
 import asyncio
 import random
+from abc import ABC
+from dataclasses import dataclass
+from typing import ClassVar
+
+import litellm
 
 
 @dataclass
@@ -20,7 +22,7 @@ class CompletionResult:
 
 class BaseLLMAdapter(ABC):
     # model context windows — used to compute context_used_pct
-    CONTEXT_WINDOWS = {
+    CONTEXT_WINDOWS: ClassVar[dict[str, int]] = {
         "anthropic/claude-sonnet-4-6": 200000,
         "openai/gpt-4o": 128000,
         "openai/gpt-4o-mini": 128000,
@@ -90,4 +92,3 @@ class BaseLLMAdapter(ABC):
         Send a prompt to the LLM and return the structured result
         Every adapter should implement this method.
         """
-        pass
