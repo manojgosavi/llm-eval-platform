@@ -68,8 +68,16 @@ def do_run_migrations(connection):
 
 
 async def run_async_migrations():
+    db_url = os.getenv("DATABASE_URL", "")
+
+    # fix Render's postgres:// URL to use asyncpg driver
+    if db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif db_url.startswith("postgresql://") and "+asyncpg" not in db_url:
+        db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
     connectable = async_engine_from_config(
-        {"sqlalchemy.url": os.getenv("DATABASE_URL")},
+        {"sqlalchemy.url": db_url},
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
