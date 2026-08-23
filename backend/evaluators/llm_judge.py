@@ -1,4 +1,5 @@
 import os
+
 import httpx
 
 SCORING_SERVICE_URL = os.getenv("SCORING_SERVICE_URL", "http://localhost:9000")

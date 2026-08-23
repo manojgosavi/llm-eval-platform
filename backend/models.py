@@ -1,7 +1,17 @@
-from sqlalchemy import Column, Integer, String, Text, Float, Boolean, DateTime, func
-from .db import Base
-from sqlalchemy import ForeignKey
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.orm import relationship
+
+from .db import Base
 
 
 class EvalRun(Base):

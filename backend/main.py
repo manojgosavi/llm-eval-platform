@@ -1,8 +1,9 @@
-from datetime import datetime
 import os
+from datetime import datetime
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
@@ -14,7 +15,6 @@ from .db import AsyncSession, get_db
 from .evaluators.llm_judge import score_llm_judge
 from .evaluators.semantic import score_semantic_similarity
 from .models import EvalRun, EvalScore
-from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
