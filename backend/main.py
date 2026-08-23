@@ -15,9 +15,10 @@ from .db import AsyncSession, get_db
 from .evaluators.llm_judge import score_llm_judge
 from .evaluators.semantic import score_semantic_similarity
 from .models import EvalRun, EvalScore
-
+from contextlib import asynccontextmanager
 from alembic.config import Config
 from alembic import command
+import os
 
 load_dotenv()
 
@@ -87,10 +88,21 @@ def get_adapter_for_model(model: str) -> BaseLLMAdapter:
 DB_DEPENDENCY = Depends(get_db)
 
 
+@asynccontextmanager
+async def lifespan(app):
+    # run migrations on startup
+    alembic_cfg = Config()
+    alembic_cfg.set_main_option("script_location", "alembic")
+    alembic_cfg.set_main_option("sqlalchemy.url", os.getenv("DATABASE_URL", ""))
+    command.upgrade(alembic_cfg, "head")
+    yield
+
+
 app = FastAPI(
     title="LLM Eval Platform",
     description="A/B test and score LLM outputs across providers",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 
@@ -324,9 +336,3 @@ async def get_scores(run_id: int, db: AsyncSession = DB_DEPENDENCY):
         .order_by(EvalScore.created_at.desc())
     )
     return result.scalars().all()
-
-
-@app.on_event("startup")
-async def run_migrations():
-    alembic_cfg = Config("alembic.ini")
-    command.upgrade(alembic_cfg, "head")
