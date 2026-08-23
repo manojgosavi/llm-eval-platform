@@ -16,6 +16,9 @@ from .evaluators.llm_judge import score_llm_judge
 from .evaluators.semantic import score_semantic_similarity
 from .models import EvalRun, EvalScore
 
+from alembic.config import Config
+from alembic import command
+
 load_dotenv()
 
 
@@ -321,3 +324,9 @@ async def get_scores(run_id: int, db: AsyncSession = DB_DEPENDENCY):
         .order_by(EvalScore.created_at.desc())
     )
     return result.scalars().all()
+
+
+@app.on_event("startup")
+async def run_migrations():
+    alembic_cfg = Config("alembic.ini")
+    command.upgrade(alembic_cfg, "head")
