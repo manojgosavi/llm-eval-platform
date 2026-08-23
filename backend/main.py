@@ -101,7 +101,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",  # local dev
-        "https://*.vercel.app",  # Vercel preview deploys
+        "https://llm-eval-platform.vercel.app",  # Vercel preview deploys
         os.getenv("FRONTEND_URL", ""),  # production Vercel URL
     ],
     allow_credentials=True,
