@@ -90,11 +90,14 @@ DB_DEPENDENCY = Depends(get_db)
 
 @asynccontextmanager
 async def lifespan(app):
-    # run migrations on startup
-    alembic_cfg = Config()
-    alembic_cfg.set_main_option("script_location", "alembic")
-    alembic_cfg.set_main_option("sqlalchemy.url", os.getenv("DATABASE_URL", ""))
-    command.upgrade(alembic_cfg, "head")
+    import asyncio
+
+    process = await asyncio.create_subprocess_exec("alembic", "upgrade", "head")
+    await process.wait()
+    if process.returncode != 0:
+        raise RuntimeError(
+            f"Alembic migration failed with exit code {process.returncode}"
+        )
     yield
 
 
